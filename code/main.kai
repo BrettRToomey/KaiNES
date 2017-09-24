@@ -1,0 +1,5 @@
+#import "rom.kai"
+
+main :: fn() -> void {
+
+}
