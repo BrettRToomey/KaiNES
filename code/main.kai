@@ -1,5 +1,29 @@
-#import "rom.kai"
+#import "roms.kai" 
+#import "cpus.kai"
+#import "libc.kai"
+ 
+main :: fn(argc: i32, argv: **u8) -> i32 {
+    if argc < 2 {
+        libc.printf("No input provided\n".raw)
+        return 1
+    }
 
-main :: fn() -> void {
+    rom, ok := roms.load(argv[1])
+    if !ok {
+        libc.printf("ROM '%s' not found\n".raw, argv[1])
+        return 2
+    }
 
+    cpu := cpus.boot()
+    rBuff : [2048]u8
+    ram := rBuff[:]
+
+    instr: u8
+    isRunning := true
+    for isRunning {
+        libc.printf("%X A:%X X:%X Y:%X P:%X SP:%X\n".raw, cpu.pc, cpu.a, cpu.x, cpu.y, cpu.p, cpu.sp)
+        cpu = cpus.step(cpu, ram, rom.pgrRom, &instr, &isRunning)
+    }
+
+    return 0
 }

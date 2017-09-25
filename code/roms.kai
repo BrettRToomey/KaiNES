@@ -1,0 +1,93 @@
+
+#library "libc" 
+#foreign libc {
+    malloc  :: (size: i64) -> rawptr
+    realloc :: (ptr: rawptr, size: i64) -> rawptr
+    memcpy  :: (dest: rawptr, source: rawptr, size: i64) -> rawptr
+
+    fopen  :: (path: *u8, mode: *u8) -> rawptr
+    fclose :: (file: rawptr) -> i32
+    fread  :: (dest: rawptr, size: i64, nmemb: i64, file: rawptr) -> i64
+}
+
+ROM :: struct {
+    // a slice into 'bytes'
+    pgrRom: []u8,
+    bytes: []u8
+}
+
+Header :: struct {
+    magicString: [4]u8,
+    pgrRomSize: u8,
+    chrRomSize: u8,
+    flags6: u8,
+    flags7: u8,
+    pgrRamSize: u8,
+    flags9: u8,
+    flags10: u8,
+    zero: [5]u8
+}
+
+appendContents :: fn(array: []u8, val: *u8, len: i64) -> []u8 {
+    newLen := array.len + len
+
+    if array.cap == 0 {
+        buff := malloc(newLen)
+        dataCopy := memcpy(buff, array.raw, array.len)
+        array.raw = dataCopy
+        array.cap = newLen
+    }
+
+    if newLen > array.cap {
+        newCap := newLen * 2
+        buff := realloc(array.raw, newCap)
+        array.raw = buff
+        array.cap = newCap
+    }
+
+    memcpy(&array.raw[array.len], val, len)
+    array.len = newLen
+
+    return array
+}
+
+validateMagicString :: fn(m: [4]u8) -> bool {
+    return m[0] == 0x4e && 
+           m[1] == 0x45 &&
+           m[2] == 0x53 &&
+           m[3] == 0x1a
+}
+
+load :: fn(path: *u8) -> ROM, bool {
+    file := fopen(path, "r".raw)
+    if file == nil {
+        return ROM {}, false
+    }
+
+    defer fclose(file)
+
+    header: Header
+    headerCount := fread(autocast &header, 16, 1, file)
+
+    if headerCount < 1 || !validateMagicString(header.magicString) {
+        return ROM {}, false
+    }
+
+
+    // TODO: trainer, CHR ROM and flags support
+    buffer : [2048]u8
+    romBytes := []u8 {}
+
+    for true {
+        count := fread(&buffer[0], 1, 2048, file)
+        if count <= 0 
+            break
+
+        romBytes = appendContents(romBytes, &buffer[0], count)         
+    }
+
+    pgrRomSize := (cast(i64)header.pgrRomSize) * 16384
+    pgrRom := romBytes[:pgrRomSize]
+
+    return ROM { pgrRom, romBytes }, true
+}

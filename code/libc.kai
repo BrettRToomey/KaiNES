@@ -1,0 +1,6 @@
+
+#library "libc"
+#foreign libc {
+    printf :: (fmt: *u8, args: #cvargs ..any) -> i32
+}
+

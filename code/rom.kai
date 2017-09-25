@@ -1,3 +1,0 @@
-ROM :: struct {
-    bytes: []u8    
-}

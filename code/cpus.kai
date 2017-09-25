@@ -1,0 +1,86 @@
+LDA  :: 0xA9
+LDX  :: 0xA2
+
+STX  :: 0x86
+
+JMP  :: 0x4C
+JMPi :: 0x6C
+
+CPU :: struct {
+    a, x, y, sp, p: u8,
+    pc: u16
+}
+
+calcAddress :: fn(msb, lsb: u8) -> u16 {
+    m := cast(u16)msb
+    l := cast(u16)lsb
+    return m * 0x100 + l
+}
+
+boot :: fn() -> CPU {
+    cpu: CPU
+    cpu.a, cpu.x, cpu.y = 0, 0, 0
+    cpu.sp = 0xFD
+    cpu.p = 0x24
+    cpu.pc = 0xC000
+
+    /* TODO
+        - $4017: 0 (frame irq disabled)
+        - $4015: 0 (sound channels disabled)
+        - $4000-$400F: 0 (sound registers)
+    */
+
+    return cpu
+}
+
+getInstr :: fn(address: u16, ram, pgrRom: []u8) -> u8, []u8 {
+    buff : []u8
+
+    if address >= 0x00 {
+        if address <= 0x1FFF {
+            buff = ram
+        }
+    }
+
+    if address >= 0xc000 {
+        address -= 0xc000 
+        buff = pgrRom
+    }
+
+    index := cast(i64)address
+    return buff[index], buff[index+1:]
+}
+
+step :: fn(cpu: CPU, ram: []u8, pgrRom: []u8, lastInst: *u8, isRunning: *bool) -> CPU {
+    instr, buff := getInstr(cpu.pc, ram, pgrRom)
+    <lastInst = instr
+   
+    switch instr {
+    case LDX:
+        cpu.x = buff[0]
+        cpu.pc += 2
+
+    case STX:
+        ram[buff[0]] = cpu.x
+        cpu.pc += 2
+
+    case JMP:
+        add := buff[:2]
+        cpu.pc = calcAddress(add[1], add[0]) 
+
+    case:
+        <isRunning = false
+    }
+
+    return cpu
+}
+
+debugInstr :: fn(i: u8) -> string {
+    switch i {
+    case LDA:  return "LDA "
+    case LDX:  return "LDX "
+    case JMP:  return "JMP "
+    case JMPi: return "JMPi"
+    case: return "Err "
+    }
+}
