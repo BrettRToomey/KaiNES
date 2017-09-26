@@ -1,10 +1,39 @@
+#import "libc.kai"
 LDA  :: 0xA9
 LDX  :: 0xA2
 
+STA  :: 0x85
 STX  :: 0x86
 
 JMP  :: 0x4C
 JMPi :: 0x6C
+JSR  :: 0x20
+
+BPL  :: 0x10
+BMI  :: 0x30
+BVC  :: 0x50
+BVS  :: 0x70
+BCC  :: 0x90
+BCS  :: 0xB0
+BNE  :: 0xD0
+BEQ  :: 0xF0
+
+RTS  :: 0x60
+
+CLC  :: 0x18
+SEC  :: 0x38
+CLI  :: 0x58
+SEI  :: 0x78
+CLV  :: 0xB8
+CLD  :: 0xD8
+SED  :: 0xF8
+
+PLA  :: 0x68
+PHP  :: 0x08
+
+BIT  :: 0x24
+
+NOP  :: 0xEA
 
 CPU :: struct {
     a, x, y, sp, p: u8,
@@ -36,10 +65,8 @@ boot :: fn() -> CPU {
 getInstr :: fn(address: u16, ram, pgrRom: []u8) -> u8, []u8 {
     buff : []u8
 
-    if address >= 0x00 {
-        if address <= 0x1FFF {
-            buff = ram
-        }
+    if address >= 0x00 && address <= 0x1FFF {
+        buff = ram
     }
 
     if address >= 0xc000 {
@@ -56,17 +83,189 @@ step :: fn(cpu: CPU, ram: []u8, pgrRom: []u8, lastInst: *u8, isRunning: *bool) -
     <lastInst = instr
    
     switch instr {
-    case LDX:
-        cpu.x = buff[0]
+    case LDA:
         cpu.pc += 2
+        cpu.a = buff[0]
+        if cpu.a == 0
+            cpu.p |= 0x02
+        else
+            cpu.p &= 0xFD
+
+        if cpu.a & 0x80 > 0
+            cpu.p |= 0x80
+        else
+            cpu.p &= 0x7F
+
+    case LDX:
+        cpu.pc += 2
+        cpu.x = buff[0]
+        if cpu.x == 0
+            cpu.p |=  0x02
+        else
+            cpu.p &= 0xFD
+
+        if cpu.x & 0x80 > 0
+            cpu.p |= 0x80
+        else
+            cpu.p &= 0x7F
+
+    case STA:
+        cpu.pc += 2
+        ram[buff[0]] = cpu.a
 
     case STX:
-        ram[buff[0]] = cpu.x
         cpu.pc += 2
+        ram[buff[0]] = cpu.x
 
     case JMP:
+        cpu.pc += 2
         add := buff[:2]
         cpu.pc = calcAddress(add[1], add[0]) 
+
+    case JSR:
+        cpu.pc += 3
+        b := buff[:2]
+        // store 'pc' to stack to restore later
+        pc := cpu.pc - 1
+        high := cast(u8)(pc >> 8)
+        low  := cast(u8)(pc & 0xFF) 
+
+        ram[0x100 + cpu.sp] = high
+        ram[0x100 + cpu.sp - 1] = low
+
+        cpu.sp -= 2
+        cpu.pc = calcAddress(b[1], b[0])
+
+    case BPL:
+        cpu.pc += 2
+        if cpu.p & 0x80 == 0 {
+            rel := cast(u16)buff[0]
+            cpu.pc += rel
+        }
+
+    case BMI:
+        cpu.pc += 2
+        if cpu.p & 0x80 > 0 {
+            rel := cast(u16)buff[0]
+            cpu.pc += rel
+        }
+
+    case BVC:
+        cpu.pc += 2
+        if cpu.p & 0x40 == 0 {
+            rel := cast(u16)buff[0]
+            cpu.pc += rel
+        }
+
+    case BVS:
+        cpu.pc += 2
+        if cpu.p & 0x40 > 0 {
+            rel := cast(u16)buff[0]
+            cpu.pc += rel
+        }
+
+    case BCC:
+        cpu.pc += 2
+        if cpu.p & 0x01 == 0 {
+            rel := cast(u16)buff[0]
+            cpu.pc += rel
+        }
+
+    case BCS:
+        cpu.pc += 2
+        if cpu.p & 0x01 > 0 {
+            rel := cast(u16)buff[0]
+            cpu.pc += rel
+        }
+
+    case BNE:
+        cpu.pc += 2
+        if cpu.p & 0x02 == 0 {
+            rel := cast(u16)buff[0]
+            cpu.pc += rel
+        }
+
+    case BEQ:
+        cpu.pc += 2
+        if cpu.p & 0x02 > 0 {
+            rel := cast(u16)buff[0]
+            cpu.pc += rel
+        }
+
+    case RTS:
+        cpu.pc += 1
+        low  := ram[0x100 + cpu.sp + 1]
+        high := ram[0x100 + cpu.sp + 2]
+        a := calcAddress(high, low) 
+        cpu.pc = a + 1
+        cpu.sp += 2
+
+    case CLC:
+        cpu.pc += 1
+        cpu.p &= 0xFE
+
+    case SEC:
+        cpu.pc += 1
+        cpu.p |= 0x01
+
+    case CLI:
+        cpu.pc += 1
+        cpu.p &= 0xFB 
+
+    case SEI:
+        cpu.pc += 1
+        cpu.p |= 0x04
+
+    case CLV:
+        cpu.pc += 1
+        cpu.p &= 0xBF
+
+    case CLD:
+        cpu.pc += 1
+        cpu.p &= 0xF7
+
+    case SED:
+        cpu.pc += 1
+        cpu.p |= 0x08
+
+    case PLA:
+        cpu.pc += 1
+        cpu.sp += 1
+        cpu.a = ram[0x100 + cpu.sp]
+
+    case PHP:
+        cpu.pc += 1
+
+        // ..two instructions (PHP and BRK) push the flags to the stack. In the
+        // byte pushed, bit 5 is always set to 1, and bit 4 is 1 if from an 
+        // instruction (PHP or BRK)
+        p := cpu.p
+        p |= 0x10
+        p |= 0x20
+
+        ram[0x100 + cpu.sp] = p
+        cpu.sp -= 1
+        
+    case BIT:
+        cpu.pc += 2
+        val := ram[buff[0]]
+        if val & cpu.a == 0
+            cpu.p |= 0x02
+        else
+            cpu.p &= 0xFD 
+
+        if val & 0x80 > 0
+            cpu.p |= 0x80
+        else
+            cpu.p &= 0x7F
+
+        if val & 0x40 > 0
+            cpu.p |= 0x40
+        else
+            cpu.p &= 0xBF
+
+    case NOP:
+        cpu.pc += 1
 
     case:
         <isRunning = false
@@ -77,10 +276,13 @@ step :: fn(cpu: CPU, ram: []u8, pgrRom: []u8, lastInst: *u8, isRunning: *bool) -
 
 debugInstr :: fn(i: u8) -> string {
     switch i {
-    case LDA:  return "LDA "
-    case LDX:  return "LDX "
-    case JMP:  return "JMP "
-    case JMPi: return "JMPi"
-    case: return "Err "
+    case LDA:  return "LDA\x00"
+    case LDX:  return "LDX\x00"
+    case STX:  return "STX\x00"
+    case JMP:  return "JMP\x00"
+    case JMPi: return "JMPi\x00"
+    case JSR:  return "JSR\x00"
+    case NOP:  return "NOP\x00"
+    case: return "Err\x00"
     }
 }
