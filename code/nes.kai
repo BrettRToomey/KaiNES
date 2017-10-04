@@ -21,8 +21,7 @@ main :: fn(argc: i32, argv: **u8) -> i32 {
     instr: u8
     isRunning := true
     for isRunning {
-        libc.printf("%X A:%02X X:%02X Y:%02X P:%02X SP:%02X\n".raw, cpu.pc, cpu.a, cpu.x, cpu.y, cpu.p, cpu.sp)
-        cpu = cpus.step(cpu, ram, rom.pgrRom, &instr, &isRunning)
+        cpu = cpus.step(cpu, ram, rom.pgrRom, &isRunning)
     }
 
     return 0

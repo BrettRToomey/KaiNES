@@ -1,59 +1,5 @@
 #import "libc.kai"
 
-ADC  :: 0x69
-SBC  :: 0xE9
-
-LDA  :: 0xA9
-LDX  :: 0xA2
-LDY  :: 0xA0
-
-STA  :: 0x85
-STX  :: 0x86
-
-INX  :: 0xE8
-INY  :: 0xC8
-
-JMP  :: 0x4C
-JMPi :: 0x6C
-JSR  :: 0x20
-
-BPL  :: 0x10
-BMI  :: 0x30
-BVC  :: 0x50
-BVS  :: 0x70
-BCC  :: 0x90
-BCS  :: 0xB0
-BNE  :: 0xD0
-BEQ  :: 0xF0
-
-RTS  :: 0x60
-
-CLC  :: 0x18
-SEC  :: 0x38
-CLI  :: 0x58
-SEI  :: 0x78
-CLV  :: 0xB8
-CLD  :: 0xD8
-SED  :: 0xF8
-
-PHA  :: 0x48
-PLA  :: 0x68
-PHP  :: 0x08
-PLP  :: 0x28
-
-CMP  :: 0xC9
-CPX  :: 0xE0
-CPY  :: 0xC0
-
-AND  :: 0x29
-
-BIT  :: 0x24
-
-NOP  :: 0xEA
-
-ORA  :: 0x09
-EOR  :: 0x49
-
 instructionSizes := [256]u8 {
 	1, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
 	2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
@@ -73,9 +19,127 @@ instructionSizes := [256]u8 {
 	2, 2, 0, 0, 2, 2, 2, 0, 1, 3, 1, 0, 3, 3, 3, 0,
 }
 
+instructionModes := [256]u8 {
+	6, 7, 6, 7, 11, 11, 11, 11, 6, 5, 4, 5, 1, 1, 1, 1,
+	10, 9, 6, 9, 12, 12, 12, 12, 6, 3, 6, 3, 2, 2, 2, 2,
+	1, 7, 6, 7, 11, 11, 11, 11, 6, 5, 4, 5, 1, 1, 1, 1,
+	10, 9, 6, 9, 12, 12, 12, 12, 6, 3, 6, 3, 2, 2, 2, 2,
+	6, 7, 6, 7, 11, 11, 11, 11, 6, 5, 4, 5, 1, 1, 1, 1,
+	10, 9, 6, 9, 12, 12, 12, 12, 6, 3, 6, 3, 2, 2, 2, 2,
+	6, 7, 6, 7, 11, 11, 11, 11, 6, 5, 4, 5, 8, 1, 1, 1,
+	10, 9, 6, 9, 12, 12, 12, 12, 6, 3, 6, 3, 2, 2, 2, 2,
+	5, 7, 5, 7, 11, 11, 11, 11, 6, 5, 6, 5, 1, 1, 1, 1,
+	10, 9, 6, 9, 12, 12, 13, 13, 6, 3, 6, 3, 2, 2, 3, 3,
+	5, 7, 5, 7, 11, 11, 11, 11, 6, 5, 6, 5, 1, 1, 1, 1,
+	10, 9, 6, 9, 12, 12, 13, 13, 6, 3, 6, 3, 2, 2, 3, 3,
+	5, 7, 5, 7, 11, 11, 11, 11, 6, 5, 6, 5, 1, 1, 1, 1,
+	10, 9, 6, 9, 12, 12, 12, 12, 6, 3, 6, 3, 2, 2, 2, 2,
+	5, 7, 5, 7, 11, 11, 11, 11, 6, 5, 6, 5, 1, 1, 1, 1,
+	10, 9, 6, 9, 12, 12, 12, 12, 6, 3, 6, 3, 2, 2, 2, 2,
+}
+
+instructionCycles := [256]u8 {
+	7, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6,
+	2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+	6, 6, 2, 8, 3, 3, 5, 5, 4, 2, 2, 2, 4, 4, 6, 6,
+	2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+	6, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 3, 4, 6, 6,
+	2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+	6, 6, 2, 8, 3, 3, 5, 5, 4, 2, 2, 2, 5, 4, 6, 6,
+	2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+	2, 6, 2, 6, 3, 3, 3, 3, 2, 2, 2, 2, 4, 4, 4, 4,
+	2, 6, 2, 6, 4, 4, 4, 4, 2, 5, 2, 5, 5, 5, 5, 5,
+	2, 6, 2, 6, 3, 3, 3, 3, 2, 2, 2, 2, 4, 4, 4, 4,
+	2, 5, 2, 5, 4, 4, 4, 4, 2, 4, 2, 4, 4, 4, 4, 4,
+	2, 6, 2, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6,
+	2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+	2, 6, 2, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6,
+	2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7,
+}
+
+instructionPageCycles := [256]u8 {
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0,
+}
+
+/*
+instrTable :: [256]() -> void {
+    brk, ora, kil, slo, nop, ora, asl, slo,
+    php, ora, asl, anc, nop, ora, asl, slo,
+    bpl, ora, kil, slo, nop, ora, asl, slo,
+    clc, ora, nop, slo, nop, ora, asl, slo,
+    jsr, and, kil, rla, bit, and, rol, rla,
+    plp, and, rol, anc, bit, and, rol, rla,
+    bmi, and, kil, rla, nop, and, rol, rla,
+    sec, and, nop, rla, nop, and, rol, rla,
+    rti, eor, kil, sre, nop, eor, lsr, sre,
+    pha, eor, lsr, alr, jmp, eor, lsr, sre,
+    bvc, eor, kil, sre, nop, eor, lsr, sre,
+    cli, eor, nop, sre, nop, eor, lsr, sre,
+    rts, adc, kil, rra, nop, adc, ror, rra,
+    pla, adc, ror, arr, jmp, adc, ror, rra,
+    bvs, adc, kil, rra, nop, adc, ror, rra,
+    sei, adc, nop, rra, nop, adc, ror, rra,
+    nop, sta, nop, sax, sty, sta, stx, sax,
+    dey, nop, txa, xaa, sty, sta, stx, sax,
+    bcc, sta, kil, ahx, sty, sta, stx, sax,
+    tya, sta, txs, tas, shy, sta, shx, ahx,
+    ldy, lda, ldx, lax, ldy, lda, ldx, lax,
+    tay, lda, tax, lax, ldy, lda, ldx, lax,
+    bcs, lda, kil, lax, ldy, lda, ldx, lax,
+    clv, lda, tsx, las, ldy, lda, ldx, lax,
+    cpy, cmp, nop, dcp, cpy, cmp, dec, dcp,
+    iny, cmp, dex, axs, cpy, cmp, dec, dcp,
+    bne, cmp, kil, dcp, nop, cmp, dec, dcp,
+    cld, cmp, nop, dcp, nop, cmp, dec, dcp,
+    cpx, sbc, nop, isc, cpx, sbc, inc, isc,
+    inx, sbc, nop, sbc, cpx, sbc, inc, isc,
+    beq, sbc, kil, isc, nop, sbc, inc, isc,
+    sed, sbc, nop, isc, nop, sbc, inc, isc
+}
+*/
+
+Mode :: enum(u8) {
+    absolute = 1,
+    absoluteX,
+    absoluteY,
+    accumulator,
+    immediate,
+    implied,
+    indexedIndirect,
+    indirect,
+    indirectIndexed,
+    relative,
+    zeroPage,
+    zeroPageX,
+    zeroPageY 
+}
+
 CPU :: struct {
     a, x, y, sp, p: u8,
-    pc: u16
+    pc: u16,
+    stall: i32,
+    cycles: u64
+}
+
+Step :: struct {
+    address: u16,
+    pc: u16,
+    mode: u8
 }
 
 calcAddress :: fn(msb, lsb: u8) -> u16 {
@@ -100,414 +164,59 @@ boot :: fn() -> CPU {
     return cpu
 }
 
-getInstr :: fn(address: u16, ram, pgrRom: []u8) -> u8, []u8 {
-    buff : []u8
-
-    if address >= 0x00 && address <= 0x1FFF {
-        buff = ram
-    }
-
-    if address >= 0xc000 {
-        address -= 0xc000 
-        buff = pgrRom
-    }
-
-    index := cast(i64)address
-    return buff[index], buff[index+1:]
+readMem :: fn(address: u16, ram, pgrRom: []u8) -> u8 {
+    return 0
 }
 
-step :: fn(cpu: CPU, ram: []u8, pgrRom: []u8, lastInst: *u8, isRunning: *bool) -> CPU {
-    instr, buff := getInstr(cpu.pc, ram, pgrRom)
-    <lastInst = instr
 
-    cpu.pc += instructionSizes[cast(u16)instr]
+step :: fn(cpu: CPU, ram: []u8, pgrRom: []u8, isRunning: *bool) -> CPU {
+    instr := readMem(cpu.pc, ram, pgrRom)
+    index := cast(i64)instr
 
-    switch instr {
-    case ADC:
-        val := cpu.a + buff[0]
-        val16Bit : u16 = cast(u16)cpu.a + buff[0]
+    mode : Mode = <(bitcast(*Mode) &instructionModes[index])
 
-        if cpu.p & 0x01 > 0 {
-            val += 1
-            val16Bit += 1
-        }
-       
-        // if the signs don't match report an overflow 
-        if ((cpu.a ^ val) & (buff[0] ^ val) & 0x80) > 0 
-            cpu.p |= 0x40
-        else
-            cpu.p &= 0xBF
-
-        if val == 0
-            cpu.p |= 0x02
-        else
-            cpu.p &= 0xFD
-
-        if val16Bit & 0x100 > 0
-            cpu.p |= 0x01
-        else
-            cpu.p &= 0xFE
-
-        if val & 0x80 > 0
-            cpu.p |= 0x80
-        else
-            cpu.p &= 0x7F
-        
-        cpu.a = val
-
-    case SBC:
-        val := cpu.a - buff[0]
-        val16Bit : i16 = cast(i16)cpu.a - buff[0]
-
-        if cpu.p & 0x01 == 0 {
-            val -= 1
-            val16Bit -= 1
-        }
-       
-        // if the signs don't match report an overflow 
-        if (cpu.a ^ buff[0]) & 0x80 != 0 && (cpu.a ^ val) & 0x80 != 0
-            cpu.p |= 0x40
-        else
-            cpu.p &= 0xBF
-
-        if val == 0
-            cpu.p |= 0x02
-        else
-            cpu.p &= 0xFD
-
-        libc.printf("CARRY: a:%X, b: %X, v: %X, v16: %d\n".raw, cpu.a, buff[0], val, val16Bit)
-        if val16Bit >= 0
-            cpu.p |= 0x01
-        else
-            cpu.p &= 0xFE
-
-        if val & 0x80 > 0
-            cpu.p |= 0x80
-        else
-            cpu.p &= 0x7F
-        
-        cpu.a = val
-
-    case LDA:
-        cpu.a = buff[0]
-        if cpu.a == 0
-            cpu.p |= 0x02
-        else
-            cpu.p &= 0xFD
-
-        if cpu.a & 0x80 > 0
-            cpu.p |= 0x80
-        else
-            cpu.p &= 0x7F
-
-    case LDX:
-        cpu.x = buff[0]
-        if cpu.x == 0
-            cpu.p |=  0x02
-        else
-            cpu.p &= 0xFD
-
-        if cpu.x & 0x80 > 0
-            cpu.p |= 0x80
-        else
-            cpu.p &= 0x7F
-
-    case LDY:
-        val := buff[0]
-        cpu.y = val
-        if val == 0
-            cpu.p |= 0x02
-        else
-            cpu.p &= 0xFD
-
-        if val & 0x80 > 0
-            cpu.p |= 0x80
-        else
-            cpu.p &= 0x7F
-
-    case STA:
-        ram[buff[0]] = cpu.a
-
-    case STX:
-        ram[buff[0]] = cpu.x
-
-    case INX:
-        val := cpu.x + 1
-        cpu.x = val
-        if val == 0
-            cpu.p |= 0x02
-        else
-            cpu.p &= 0xFD
-
-        if val & 0x80 > 0
-            cpu.p |= 0x80
-        else
-            cpu.p &= 0x7F
-    case INY:
-        val := cpu.y + 1
-        cpu.y = val
-        if val == 0
-            cpu.p |= 0x02
-        else
-            cpu.p &= 0xFD
-
-        if val & 0x80 > 0
-            cpu.p |= 0x80
-        else
-            cpu.p &= 0x7F
-
-    case JMP:
-        add := buff[:2]
-        cpu.pc = calcAddress(add[1], add[0]) 
-
-    case JSR:
-        b := buff[:2]
-        // store 'pc' to stack to restore later
-        pc := cpu.pc - 1
-        high := cast(u8)(pc >> 8)
-        low  := cast(u8)(pc & 0xFF) 
-
-        ram[0x100 + cpu.sp] = high
-        ram[0x100 + cpu.sp - 1] = low
-
-        cpu.sp -= 2
-        cpu.pc = calcAddress(b[1], b[0])
-
-    case BPL:
-        if cpu.p & 0x80 == 0 {
-            rel := cast(u16)buff[0]
-            cpu.pc += rel
-        }
-
-    case BMI:
-        if cpu.p & 0x80 > 0 {
-            rel := cast(u16)buff[0]
-            cpu.pc += rel
-        }
-
-    case BVC:
-        if cpu.p & 0x40 == 0 {
-            rel := cast(u16)buff[0]
-            cpu.pc += rel
-        }
-
-    case BVS:
-        if cpu.p & 0x40 > 0 {
-            rel := cast(u16)buff[0]
-            cpu.pc += rel
-        }
-
-    case BCC:
-        if cpu.p & 0x01 == 0 {
-            rel := cast(u16)buff[0]
-            cpu.pc += rel
-        }
-
-    case BCS:
-        if cpu.p & 0x01 > 0 {
-            rel := cast(u16)buff[0]
-            cpu.pc += rel
-        }
-
-    case BNE:
-        if cpu.p & 0x02 == 0 {
-            rel := cast(u16)buff[0]
-            cpu.pc += rel
-        }
-
-    case BEQ:
-        if cpu.p & 0x02 > 0 {
-            rel := cast(u16)buff[0]
-            cpu.pc += rel
-        }
-
-    case RTS:
-        low  := ram[0x100 + cpu.sp + 1]
-        high := ram[0x100 + cpu.sp + 2]
-        a := calcAddress(high, low) 
-        cpu.pc = a + 1
-        cpu.sp += 2
-
-    case CLC:
-        cpu.p &= 0xFE
-
-    case SEC:
-        cpu.p |= 0x01
-
-    case CLI:
-        cpu.p &= 0xFB 
-
-    case SEI:
-        cpu.p |= 0x04
-
-    case CLV:
-        cpu.p &= 0xBF
-
-    case CLD:
-        cpu.p &= 0xF7
-
-    case SED:
-        cpu.p |= 0x08
-
-    case PHA:
-        ram[0x100 + cpu.sp] = cpu.a
-        cpu.sp -= 1
-
-    case PLA:
-        cpu.sp += 1
-        val := ram[0x100 + cpu.sp]
-        cpu.a = val
-
-        if val & 0x80 > 0
-            cpu.p |= 0x80
-        else
-            cpu.p &= 0x7F
-
-        if val == 0
-            cpu.p |= 0x02
-        else
-            cpu.p &= 0xFD
-
-    case PHP:
-
-        // ..two instructions (PHP and BRK) push the flags to the stack. In the
-        // byte pushed, bit 5 is always set to 1, and bit 4 is 1 if from an 
-        // instruction (PHP or BRK)
-        p := cpu.p
-        p |= 0x10
-        p |= 0x20
-
-        ram[0x100 + cpu.sp] = p
-        cpu.sp -= 1
-        
-    case PLP:
-        cpu.sp += 1
-        fourFiveMask := cpu.p & 0x30
-        val := ram[0x100 + cpu.sp]
-        val &= 0xCF // disable bits 4 & 5
-        cpu.p = val | fourFiveMask
-
-    case CMP:
-        M := buff[0]
-        val := cpu.a - M
-        
-        if cpu.a >= M
-            cpu.p |= 0x01
-        else
-            cpu.p &= 0xFE
-
-        if val & 0x80 > 0
-            cpu.p |= 0x80
-        else
-            cpu.p &= 0x7F
-    
-        if val == 0
-            cpu.p |= 0x02
-        else
-            cpu.p &= 0xFD
-
-    case CPX:
-        M := buff[0]
-        val := cpu.x - M
-        
-        if cpu.x >= M
-            cpu.p |= 0x01
-        else
-            cpu.p &= 0xFE
-
-        if val & 0x80 > 0
-            cpu.p |= 0x80
-        else
-            cpu.p &= 0x7F
-    
-        if val == 0
-            cpu.p |= 0x02
-        else
-            cpu.p &= 0xFD
-
-    case CPY:
-        M := buff[0]
-        val := cpu.y - M
-        
-        if cpu.y >= M
-            cpu.p |= 0x01
-        else
-            cpu.p &= 0xFE
-
-        if val & 0x80 > 0
-            cpu.p |= 0x80
-        else
-            cpu.p &= 0x7F
-    
-        if val == 0
-            cpu.p |= 0x02
-        else
-            cpu.p &= 0xFD
-
-    case AND:
-        val := buff[0] & cpu.a
-        cpu.a = val
-
-        if val & 0x80 > 0
-            cpu.p |= 0x80
-        else
-            cpu.p &= 0x7F
-
-        if val == 0
-            cpu.p |= 0x02
-        else
-            cpu.p &= 0xFD
-
-    case BIT:
-        val := ram[buff[0]]
-        if val & cpu.a == 0
-            cpu.p |= 0x02
-        else
-            cpu.p &= 0xFD 
-
-        if val & 0x80 > 0
-            cpu.p |= 0x80
-        else
-            cpu.p &= 0x7F
-
-        if val & 0x40 > 0
-            cpu.p |= 0x40
-        else
-            cpu.p &= 0xBF
-
-    case NOP:
+    address: u16
+    pageCrossed := false
+    switch mode {
+    case Mode.absolute:
         break
-
-    case ORA:
-        val := cpu.a | buff[0]
-        cpu.a = val
-        if val == 0
-            cpu.p |= 0x02
-        else
-            cpu.p &= 0xFD
-
-        if val & 0x80 > 0
-            cpu.p |= 0x80
-        else
-            cpu.p &= 0x7F
-
-    case EOR:
-        val := cpu.a ^ buff[0]
-        cpu.a = val
-        if val == 0
-            cpu.p |= 0x02
-        else
-            cpu.p &= 0xFD
-
-        if val & 0x80 > 0
-            cpu.p |= 0x80
-        else
-            cpu.p &= 0x7F
-
-    case:
-        <isRunning = false
+    case Mode.absoluteX:
+        break
+    case Mode.absoluteY:
+        break
+    case Mode.accumulator:
+        address = 0
+    case Mode.immediate:
+        address = cpu.pc + 1
+    case Mode.implied:
+        address = 0
+    case Mode.indexedIndirect:
+        break
+    case Mode.indirect:
+        break
+    case Mode.indirectIndexed:
+        break
+    case Mode.relative:
+        break
+    case Mode.zeroPage:
+        break
+    case Mode.zeroPageX:
+        break
+    case Mode.zeroPageY:
+        break
+    case: break
     }
 
+    cpu.pc += cast(u16) instructionSizes[index]
+    oldCycles := cpu.cycles
+    cpu.cycles += cast(u64) instructionCycles[index]
+    if pageCrossed
+        cpu.cycles += cast(u64) instructionPageCycles[index]
+
+    <isRunning = false
     return cpu
 }
 
+adc :: fn(cpu: CPU, step: Step) -> CPU {
+    return cpu
+}

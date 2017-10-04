@@ -1,13 +1,13 @@
 
 #library "libc" 
 #foreign libc {
-    malloc  :: (size: i64) -> rawptr
-    realloc :: (ptr: rawptr, size: i64) -> rawptr
-    memcpy  :: (dest: rawptr, source: rawptr, size: i64) -> rawptr
+    malloc  :: (size: u64) -> rawptr
+    realloc :: (ptr: rawptr, size: u64) -> rawptr
+    memcpy  :: (dest: rawptr, source: rawptr, size: u64) -> rawptr
 
     fopen  :: (path: *u8, mode: *u8) -> rawptr
     fclose :: (file: rawptr) -> i32
-    fread  :: (dest: rawptr, size: i64, nmemb: i64, file: rawptr) -> i64
+    fread  :: (dest: rawptr, size: u64, nmemb: u64, file: rawptr) -> u64
 }
 
 ROM :: struct {
@@ -28,7 +28,7 @@ Header :: struct {
     zero: [5]u8
 }
 
-appendContents :: fn(array: []u8, val: *u8, len: i64) -> []u8 {
+appendContents :: fn(array: []u8, val: *u8, len: u64) -> []u8 {
     newLen := array.len + len
 
     if array.cap == 0 {
@@ -86,7 +86,7 @@ load :: fn(path: *u8) -> ROM, bool {
         romBytes = appendContents(romBytes, &buffer[0], count)         
     }
 
-    pgrRomSize := (cast(i64)header.pgrRomSize) * 16384
+    pgrRomSize := (cast(u64)header.pgrRomSize) * 16384
     pgrRom := romBytes[:pgrRomSize]
 
     return ROM { pgrRom, romBytes }, true
