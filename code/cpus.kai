@@ -1,4 +1,7 @@
 #import "libc.kai"
+#import "memory.kai"
+
+Memory :: memory.Memory
 
 instructionSizes := [256]u8 {
 	1, 2, 0, 0, 2, 2, 2, 0, 1, 2, 1, 0, 3, 3, 3, 0,
@@ -130,10 +133,12 @@ Mode :: enum(u8) {
 }
 
 CPU :: struct {
-    a, x, y, sp, p: u8,
+    a, x, y, sp: u8,
+    C, Z, I, D, B, U, V, N: u8,
     pc: u16,
     stall: i32,
-    cycles: u64
+    cycles: u64,
+    mem: *Memory
 }
 
 Step :: struct {
@@ -148,11 +153,11 @@ calcAddress :: fn(msb, lsb: u8) -> u16 {
     return m * 0x100 + l
 }
 
-boot :: fn() -> CPU {
+boot :: fn(mem: *Memory) -> CPU {
     cpu: CPU
+    cpu.mem = mem
     cpu.a, cpu.x, cpu.y = 0, 0, 0
     cpu.sp = 0xFD
-    cpu.p = 0x24
     cpu.pc = 0xC000
 
     /* TODO
@@ -164,13 +169,97 @@ boot :: fn() -> CPU {
     return cpu
 }
 
-readMem :: fn(address: u16, ram, pgrRom: []u8) -> u8 {
+read :: fn(address: u16, mem: *Memory) -> u8 {
+    m := <mem
+    if address < 0x2000
+        return m.ram[address % 0x0800]
+    else if address < 0x4000
+        return 0 // TODO: read PPU register
+    else if address == 0x4014
+        return 0 // TODO: read PPU register
+    else if address == 0x4015
+        return 0 // TODO: read APU register
+    else if address == 0x4016
+        return 0 // TODO: read controller 1
+    else if address == 0x4017
+        return 0 // TODO: read controller 2
+    else if address < 0x6000
+        return 0 // TODO: read I/O registers
+    else if address >= 0x6000
+        return m.mapper.read(address)
+
     return 0
 }
 
+read16 :: fn(address: u16, mem: *Memory) -> u16 {
+    lo := cast(u16)read(address, mem)
+    hi := cast(u16)read(address, mem)
+    return hi << 8 | lo
+}
 
-step :: fn(cpu: CPU, ram: []u8, pgrRom: []u8, isRunning: *bool) -> CPU {
-    instr := readMem(cpu.pc, ram, pgrRom)
+read16Bugged :: fn(address: u16, mem: *Memory) -> u16 {
+    a := address
+    aTrunc := cast(u8)a
+    aTrunc += 1
+    a = cast(u16)aTrunc
+    b := (a & 0xFF00) | a
+    lo := read(a, mem)
+    hi := read(b, mem)
+
+    lo16 := cast(u16)lo
+    hi16 := cast(u16)hi
+    return hi16 << 8 | lo16
+}
+
+flags :: fn(cpu: CPU) -> u8 {
+    res: u8 = 0
+    res |= cpu.C << 0
+    res |= cpu.Z << 1
+    res |= cpu.I << 2
+    res |= cpu.D << 3
+    res |= cpu.B << 4
+    res |= cpu.U << 5
+    res |= cpu.V << 6
+    res |= cpu.N << 7
+    return res
+}
+
+setFlags :: fn(cpu: CPU, flags: u8) -> CPU {
+    cpu.C = (flags >> 0) & 1
+    cpu.Z = (flags >> 1) & 1
+    cpu.I = (flags >> 2) & 1
+    cpu.D = (flags >> 3) & 1
+    cpu.B = (flags >> 4) & 1
+    cpu.U = (flags >> 5) & 1
+    cpu.V = (flags >> 6) & 1
+    cpu.N = (flags >> 7) & 1
+    return cpu
+}
+
+setZ :: fn(cpu: CPU, val: u8) -> CPU {
+    if val == 0
+        cpu.Z = 1
+    else
+        cpu.Z = 0
+    return cpu
+}
+
+setN :: fn(cpu: CPU, val: u8) -> CPU {
+    if val & 0x80 != 0
+        cpu.N = 1
+    else
+        cpu.N = 0
+    return cpu
+}
+
+setZN :: fn(cpu: CPU, val: u8) -> CPU {
+    cpu = setZ(cpu, val)
+    cpu = setN(cpu, val)
+    return cpu
+}
+
+step :: fn(cpu: CPU, isRunning: *bool) -> CPU {
+    instr := read(cpu.pc, cpu.mem)
     index := cast(i64)instr
 
     mode : Mode = <(bitcast(*Mode) &instructionModes[index])

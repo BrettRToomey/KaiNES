@@ -1,0 +1,13 @@
+Mapper :: struct {
+    read:  (address: u16) -> u8
+}
+
+
+Memory :: struct {
+    ram, pgrRam: []u8,
+    mapper: Mapper
+}
+
+NewMemory :: fn() -> Memory {
+    return Memory {}
+}
