@@ -258,6 +258,10 @@ setZN :: fn(cpu: CPU, val: u8) -> CPU {
     return cpu
 }
 
+pagesDiffer :: fn(a, b: u16) -> bool {
+    return a & 0xFF00 != b & 0xFF00
+}
+
 step :: fn(cpu: CPU, isRunning: *bool) -> CPU {
     instr := read(cpu.pc, cpu.mem)
     index := cast(i64)instr
@@ -268,11 +272,15 @@ step :: fn(cpu: CPU, isRunning: *bool) -> CPU {
     pageCrossed := false
     switch mode {
     case Mode.absolute:
-        break
+        address = read16(cpu.pc + 1, cpu.mem)
     case Mode.absoluteX:
-        break
+        x16 := cast(u16)cpu.x
+        address = read16(cpu.pc + 1 + x16, cpu.mem)
+        pageCrossed = pagesDiffer(address - x16, address) 
     case Mode.absoluteY:
-        break
+        y16 := cast(u16)cpu.y
+        address = read16(cpu.pc + 1 + y16, cpu.mem)
+        pageCrossed = pagesDiffer(address - y16, address) 
     case Mode.accumulator:
         address = 0
     case Mode.immediate:
@@ -280,19 +288,31 @@ step :: fn(cpu: CPU, isRunning: *bool) -> CPU {
     case Mode.implied:
         address = 0
     case Mode.indexedIndirect:
-        break
+        a := read(cpu.pc + 1, cpu.mem) + cpu.x
+        address = read16Bugged(cast(u16)a, cpu.mem)
     case Mode.indirect:
-        break
+        address = read16Bugged(read16(cpu.pc + 1, cpu.mem), cpu.mem)
     case Mode.indirectIndexed:
-        break
+        a := read16Bugged(read16(cpu.pc + 1, cpu.mem), cpu.mem)
+        y16 := cast(u16)cpu.y
+        address = a + y16
+        pageCrossed = pagesDiffer(a, address)
     case Mode.relative:
-        break
+        offset := cast(u16)read(cpu.pc + 1, cpu.mem)
+        if offset < 0x80
+            address = cpu.pc + 2 + offset
+        else
+            address = cpu.pc + 2 + offset - 0x100
     case Mode.zeroPage:
-        break
+        address = cast(u16)read(cpu.pc + 1, cpu.mem)
     case Mode.zeroPageX:
-        break
+        x16 := cast(u16)cpu.x
+        a := cast(u16)read(cpu.pc + 1, cpu.mem)
+        address = a + x16
     case Mode.zeroPageY:
-        break
+        y16 := cast(u16)cpu.y
+        a := cast(u16)read(cpu.pc + 1, cpu.mem)
+        address = a + y16
     case: break
     }
 
