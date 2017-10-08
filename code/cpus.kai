@@ -525,3 +525,79 @@ tya :: fn(cpu: CPU, step: Step) -> CPU {
     return setZN(cpu, cpu.a)
 }
 
+// MARK: illegal ops
+ahx :: fn(cpu: CPU, step: Step) -> CPU {
+	return cpu
+}
+
+alr :: fn(cpu: CPU, step: Step) -> CPU {
+	return cpu
+}
+
+anc :: fn(cpu: CPU, step: Step) -> CPU {
+	return cpu
+}
+
+arr :: fn(cpu: CPU, step: Step) -> CPU {
+	return cpu
+}
+
+axs :: fn(cpu: CPU, step: Step) -> CPU {
+	return cpu
+}
+
+dcp :: fn(cpu: CPU, step: Step) -> CPU {
+	return cpu
+}
+
+isc :: fn(cpu: CPU, step: Step) -> CPU {
+	return cpu
+}
+
+kil :: fn(cpu: CPU, step: Step) -> CPU {
+	return cpu
+}
+
+las :: fn(cpu: CPU, step: Step) -> CPU {
+	return cpu
+}
+
+lax :: fn(cpu: CPU, step: Step) -> CPU {
+	return cpu
+}
+
+rla :: fn(cpu: CPU, step: Step) -> CPU {
+	return cpu
+}
+
+rra :: fn(cpu: CPU, step: Step) -> CPU {
+	return cpu
+}
+
+sax :: fn(cpu: CPU, step: Step) -> CPU {
+	return cpu
+}
+
+shx :: fn(cpu: CPU, step: Step) -> CPU {
+	return cpu
+}
+
+shy :: fn(cpu: CPU, step: Step) -> CPU {
+	return cpu
+}
+
+slo :: fn(cpu: CPU, step: Step) -> CPU {
+	return cpu
+}
+
+sre :: fn(cpu: CPU, step: Step) -> CPU {
+	return cpu
+}
+
+tas :: fn(cpu: CPU, step: Step) -> CPU {
+	return cpu
+}
+
+xaa :: fn(cpu: CPU, step: Step) -> CPU {
+	return cpu
+}
