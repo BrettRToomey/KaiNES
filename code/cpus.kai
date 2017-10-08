@@ -476,3 +476,52 @@ clv :: fn(cpu: CPU, step: Step) -> CPU {
     return cpu
 }
 
+// TODO: more instructions go here
+
+sec :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.C = 1
+    return cpu
+}
+
+sed :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.D = 1
+    return cpu
+}
+
+sei :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.I = 1
+    return cpu
+}
+
+// TODO: more instructions go here
+
+tax :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.x = cpu.a
+    return setZN(cpu, cpu.x)
+}
+
+tay :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.y = cpu.a
+    return setZN(cpu, cpu.y)
+}
+
+tsx :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.x = cpu.sp
+    return setZN(cpu, cpu.x)
+}
+
+txa :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.a = cpu.x
+    return setZN(cpu, cpu.a)
+}
+
+txs :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.sp = cpu.x
+    return cpu
+}
+
+tya :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.a = cpu.y
+    return setZN(cpu, cpu.a)
+}
+
