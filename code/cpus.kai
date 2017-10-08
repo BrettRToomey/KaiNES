@@ -456,3 +456,23 @@ bvs :: fn(cpu: CPU, step: Step) -> CPU {
     return cpu
 }
 
+clc :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.C = 0
+    return cpu
+}
+
+cld :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.D = 0
+    return cpu
+}
+
+cli :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.I = 0
+    return cpu
+}
+
+clv :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.V = 0
+    return cpu
+}
+
