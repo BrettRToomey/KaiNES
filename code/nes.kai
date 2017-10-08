@@ -14,14 +14,15 @@ main :: fn(argc: i32, argv: **u8) -> i32 {
         return 2
     }
 
-    cpu := cpus.boot()
     rBuff : [2048]u8
     ram := rBuff[:]
-
+    mem := cpus.memory.NewMemory()
+    mem.ram = ram
+    cpu := cpus.boot(&mem)
     instr: u8
     isRunning := true
     for isRunning {
-        cpu = cpus.step(cpu, ram, rom.pgrRom, &isRunning)
+        cpu = cpus.step(cpu, &isRunning)
     }
 
     return 0

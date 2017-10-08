@@ -12,19 +12,19 @@
 
 ROM :: struct {
     // a slice into 'bytes'
-    pgrRom: []u8,
+    pgrRom: []u8
     bytes: []u8
 }
 
 Header :: struct {
-    magicString: [4]u8,
-    pgrRomSize: u8,
-    chrRomSize: u8,
-    flags6: u8,
-    flags7: u8,
-    pgrRamSize: u8,
-    flags9: u8,
-    flags10: u8,
+    magicString: [4]u8
+    pgrRomSize: u8
+    chrRomSize: u8
+    flags6: u8
+    flags7: u8
+    pgrRamSize: u8
+    flags9: u8
+    flags10: u8
     zero: [5]u8
 }
 
