@@ -349,3 +349,110 @@ adc :: fn(cpu: CPU, step: Step) -> CPU {
 
     return cpu
 }
+
+and :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.a = cpu.a & read(step.address, cpu.mem)
+    return setZN(cpu, cpu.a)
+}
+
+asl :: fn(cpu: CPU, step: Step) -> CPU {
+    if step.mode == 0x04 {
+        cpu.C = (cpu.a >> 7) & 1
+        cpu.a <<= 1
+        cpu = setZN(cpu, cpu.a)
+    }; else {
+        value := read(step.address, cpu.mem)
+        cpu.C = (value >> 7) & 1
+        value <<= 1
+        // TODO: cpu write
+        cpu = setZN(cpu, value)
+    }
+
+   return cpu 
+}
+
+bcc :: fn(cpu: CPU, step: Step) -> CPU {
+    if cpu.C == 0 {
+        cpu.pc = step.address
+        // TODO: add branch cycles
+    }
+
+    return cpu
+}
+
+bcs :: fn(cpu: CPU, step: Step) -> CPU {
+    if cpu.C != 0 {
+        cpu.pc = step.address
+        // TODO: add branch cycles
+    }
+
+    return cpu
+}
+
+beq :: fn(cpu: CPU, step: Step) -> CPU {
+    if cpu.Z != 0 {
+        cpu.pc = step.address
+        // TODO: add branch cycles
+    }
+
+    return cpu
+}
+
+bit :: fn(cpu: CPU, step: Step) -> CPU {
+    value := read(step.address, cpu.mem)
+    cpu.V = (value >> 6) & 1
+    cpu = setZ(cpu, value & cpu.a)
+    cpu = setN(cpu, value)
+    return cpu
+}
+
+bmi :: fn(cpu: CPU, step: Step) -> CPU {
+    if cpu.N != 0 {
+        cpu.pc = step.address
+        // TODO: add branch cycles
+    }
+
+    return cpu
+}
+
+bne :: fn(cpu: CPU, step: Step) -> CPU {
+    if cpu.N == 0 {
+        cpu.pc = step.address
+        // TODO: add branch cycles
+    }
+
+    return cpu
+}
+
+bpl :: fn(cpu: CPU, step: Step) -> CPU {
+    if cpu.N == 0 {
+        cpu.pc = step.address
+        // TODO: add branch cycles
+    }
+
+    return cpu
+}
+
+brk :: fn(cpu: CPU, step: Step) -> CPU {
+    // TODO: implementation requires stack impl
+    return cpu
+}
+
+bvc :: fn(cpu: CPU, step: Step) -> CPU {
+    if cpu.V == 0 {
+        cpu.pc = step.address
+        // TODO: add branch cycles
+    }
+
+    return cpu
+}
+
+bvs :: fn(cpu: CPU, step: Step) -> CPU {
+    if cpu.V != 0 {
+        cpu.pc = step.address
+        // TODO: add branch cycles
+    } 
+
+    return cpu
+}
+
