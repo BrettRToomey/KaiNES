@@ -193,6 +193,13 @@ read :: fn(address: u16, mem: *Memory) -> u8 {
     return 0
 }
 
+write :: fn(address: u16, val: u8, mem: *Memory) -> void {
+    m := <mem
+    if address < 0x2000
+        m.ram[address % 0x0800] = val
+    // TODO: other registers, inputs and mapper writes
+}
+
 read16 :: fn(address: u16, mem: *Memory) -> u16 {
     lo := cast(u16)read(address, mem)
     hi := cast(u16)read(address, mem)
@@ -211,6 +218,48 @@ read16Bugged :: fn(address: u16, mem: *Memory) -> u16 {
     lo16 := cast(u16)lo
     hi16 := cast(u16)hi
     return hi16 << 8 | lo16
+}
+
+push :: fn(val: u8, cpu: CPU) -> CPU {
+    sp16 := cast(u16)cpu.sp
+    write(0x100 | sp16, val, cpu.mem)
+    cpu.sp -= 1
+    return cpu
+}
+
+pull :: fn(cpu: CPU) -> u8 {
+    cpu.sp += 1
+    sp16 := cast(u16)cpu.sp
+    return read(0x100 | sp16, cpu.mem)
+}
+
+push16 :: fn(val: u16, cpu: CPU) -> CPU {
+    hi := cast(u8)val >> 8
+    lo := cast(u8) val & 0xFF
+    cpu = push(hi, cpu)
+    return push(lo, cpu)
+}
+
+pull16 :: fn(cpu: CPU) -> u16 {
+    lo := cast(u16)pull(cpu)
+    hi := cast(u16)pull(cpu)
+    return hi << 8 | lo
+}
+
+addBranchCycles :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.cycles += 1
+    if pagesDiffer(cpu.pc, step.address)
+        cpu.cycles += 1
+    return cpu
+}
+
+compare :: fn(cpu: CPU, a, b: u8) -> CPU {
+    cpu = setZN(cpu, a - b)
+    if a >= b
+        cpu.C = 1
+    else
+        cpu.C = 0
+    return cpu
 }
 
 flags :: fn(cpu: CPU) -> u8 {
@@ -374,7 +423,7 @@ asl :: fn(cpu: CPU, step: Step) -> CPU {
 bcc :: fn(cpu: CPU, step: Step) -> CPU {
     if cpu.C == 0 {
         cpu.pc = step.address
-        // TODO: add branch cycles
+        cpu = addBranchCycles(cpu, step)
     }
 
     return cpu
@@ -383,7 +432,7 @@ bcc :: fn(cpu: CPU, step: Step) -> CPU {
 bcs :: fn(cpu: CPU, step: Step) -> CPU {
     if cpu.C != 0 {
         cpu.pc = step.address
-        // TODO: add branch cycles
+        cpu = addBranchCycles(cpu, step)
     }
 
     return cpu
@@ -392,7 +441,7 @@ bcs :: fn(cpu: CPU, step: Step) -> CPU {
 beq :: fn(cpu: CPU, step: Step) -> CPU {
     if cpu.Z != 0 {
         cpu.pc = step.address
-        // TODO: add branch cycles
+        cpu = addBranchCycles(cpu, step)
     }
 
     return cpu
@@ -409,7 +458,7 @@ bit :: fn(cpu: CPU, step: Step) -> CPU {
 bmi :: fn(cpu: CPU, step: Step) -> CPU {
     if cpu.N != 0 {
         cpu.pc = step.address
-        // TODO: add branch cycles
+        cpu = addBranchCycles(cpu, step)
     }
 
     return cpu
@@ -418,7 +467,7 @@ bmi :: fn(cpu: CPU, step: Step) -> CPU {
 bne :: fn(cpu: CPU, step: Step) -> CPU {
     if cpu.N == 0 {
         cpu.pc = step.address
-        // TODO: add branch cycles
+        cpu = addBranchCycles(cpu, step)
     }
 
     return cpu
@@ -427,7 +476,7 @@ bne :: fn(cpu: CPU, step: Step) -> CPU {
 bpl :: fn(cpu: CPU, step: Step) -> CPU {
     if cpu.N == 0 {
         cpu.pc = step.address
-        // TODO: add branch cycles
+        cpu = addBranchCycles(cpu, step)
     }
 
     return cpu
@@ -441,7 +490,7 @@ brk :: fn(cpu: CPU, step: Step) -> CPU {
 bvc :: fn(cpu: CPU, step: Step) -> CPU {
     if cpu.V == 0 {
         cpu.pc = step.address
-        // TODO: add branch cycles
+        cpu = addBranchCycles(cpu, step)
     }
 
     return cpu
@@ -450,7 +499,7 @@ bvc :: fn(cpu: CPU, step: Step) -> CPU {
 bvs :: fn(cpu: CPU, step: Step) -> CPU {
     if cpu.V != 0 {
         cpu.pc = step.address
-        // TODO: add branch cycles
+        cpu = addBranchCycles(cpu, step)
     } 
 
     return cpu
@@ -476,7 +525,176 @@ clv :: fn(cpu: CPU, step: Step) -> CPU {
     return cpu
 }
 
-// TODO: more instructions go here
+cmp :: fn(cpu: CPU, step: Step) -> CPU {
+    val := read(step.address, cpu.mem)
+    return compare(cpu, cpu.a, val)
+}
+
+cpx :: fn(cpu: CPU, step: Step) -> CPU {
+    val := read(step.address, cpu.mem)
+    return compare(cpu, cpu.x, val)
+}
+
+cpy :: fn(cpu: CPU, step: Step) -> CPU {
+    val := read(step.address, cpu.mem)
+    return compare(cpu, cpu.y, val)
+}
+
+dec :: fn(cpu: CPU, step: Step) -> CPU {
+    val := read(step.address, cpu.mem) - 1
+    write(step.address, val, cpu.mem)
+    return setZN(cpu, val)
+}
+
+dex :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.x -= 1
+    return setZN(cpu, cpu.x)
+}
+
+dey :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.y -= 1
+    return setZN(cpu, cpu.y)
+}
+
+eor :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.a = cpu.a ^ read(step.address, cpu.mem)
+    return setZN(cpu, cpu.a)
+}
+
+inc :: fn(cpu: CPU, step: Step) -> CPU {
+    val := read(step.address, cpu.mem) + 1
+    write(step.address, val, cpu.mem)
+    return setZN(cpu, val)
+}
+
+inx :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.x += 1
+    return setZN(cpu, cpu.x)
+}
+
+iny :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.y += 1
+    return setZN(cpu, cpu.y)
+}
+
+jmp :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.pc = step.address
+    return cpu
+}
+
+jsr :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu = push16(cpu.pc - 1, cpu)
+    cpu.pc = step.address
+    return cpu
+}
+
+lda :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.a = read(step.address, cpu.mem)
+    return setZN(cpu, cpu.a)
+}
+
+ldx :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.x = read(step.address, cpu.mem)
+    return setZN(cpu, cpu.x)
+}
+
+ldy :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.y = read(step.address, cpu.mem)
+    return setZN(cpu, cpu.y)
+}
+
+lsr :: fn(cpu: CPU, step: Step) -> CPU {
+    // accumulator
+    if step.mode == 0x04 {
+        cpu.C = cpu.a & 1
+        cpu.a >>= 1
+        cpu = setZN(cpu, cpu.a)
+    }; else {
+        val := read(step.address, cpu.mem)
+        cpu.C = val & 1
+        val >>= 1
+        write(step.address, val, cpu.mem)
+        cpu = setZN(cpu, val)
+    }
+    return cpu 
+}
+
+nop :: fn(cpu: CPU, step: Step) -> CPU {
+    return cpu
+}
+
+ora :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.a = cpu.a | read(step.address, cpu.mem)
+    return setZN(cpu, cpu.a)
+}
+
+pha :: fn(cpu: CPU, step: Step) -> CPU {
+    return push(cpu.a, cpu)
+}
+
+php :: fn(cpu: CPU, step: Step) -> CPU {
+    return push(flags(cpu) | 0x10, cpu)
+}
+
+pla :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.a = pull(cpu)
+    return cpu
+}
+
+plp :: fn(cpu: CPU, step: Step) -> CPU {
+    return setFlags(cpu, pull(cpu) & 0xEF | 0x20)
+}
+
+rol :: fn(cpu: CPU, step: Step) -> CPU {
+    if step.mode == 0x04 {
+        c := cpu.C
+        cpu.C = (cpu.a >> 7) & 1
+        cpu.a = (cpu.a << 1) | c
+        cpu = setZN(cpu, cpu.a) 
+    }; else {
+        c := cpu.C
+        val := read(step.address, cpu.mem)
+        cpu.C = (val >> 7) & 1
+        val   = (val << 1) & c
+        write(step.address, val, cpu.mem) 
+        cpu = setZN(cpu, val)
+    }
+    return cpu
+}
+
+rti :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu = setFlags(cpu, pull(cpu) & 0xEF | 0x20)
+    cpu.pc = pull16(cpu)
+    return cpu
+}
+
+rts :: fn(cpu: CPU, step: Step) -> CPU {
+    cpu.pc = pull16(cpu) + 1
+    return cpu
+}
+
+sbc :: fn(cpu: CPU, step: Step) -> CPU {
+    a := cpu.a
+    b := read(step.address, cpu.mem)
+    c := cpu.C
+    cpu.a = a - b - (1 - c)
+    cpu = setZN(cpu, cpu.a)
+
+    a32 := cast(i32)a
+    b32 := cast(i32)b
+    c32 := cast(i32)c
+    if a - b - (1 - c) >= 0
+        cpu.C = 1
+    else
+        cpu.C = 0
+
+    if (a^b) & 0x80 != 0 && (a^cpu.a) & 0x80 != 0
+        cpu.V = 1
+    else
+        cpu.V = 0
+
+    return cpu
+}
 
 sec :: fn(cpu: CPU, step: Step) -> CPU {
     cpu.C = 1
@@ -493,7 +711,20 @@ sei :: fn(cpu: CPU, step: Step) -> CPU {
     return cpu
 }
 
-// TODO: more instructions go here
+sta :: fn(cpu: CPU, step: Step) -> CPU {
+    write(step.address, cpu.a, cpu.mem)
+    return cpu
+}
+
+stx :: fn(cpu: CPU, step: Step) -> CPU {
+    write(step.address, cpu.x, cpu.mem)
+    return cpu
+}
+
+sty :: fn(cpu: CPU, step: Step) -> CPU {
+    write(step.address, cpu.y, cpu.mem)
+    return cpu
+}
 
 tax :: fn(cpu: CPU, step: Step) -> CPU {
     cpu.x = cpu.a
