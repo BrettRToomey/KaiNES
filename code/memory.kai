@@ -1,3 +1,4 @@
+#import "libc.kai"
 
 Mapper :: struct {
     read:  (address: u16) -> u8
@@ -10,5 +11,12 @@ Memory :: struct {
 }
 
 NewMemory :: fn() -> Memory {
-    return Memory {}
+    mapper := Mapper {
+        read: &read
+    }
+    return Memory { mapper: mapper }
+}
+
+read :: fn(address: u16) -> u8 {
+    return 0
 }

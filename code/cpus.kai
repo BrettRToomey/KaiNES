@@ -315,7 +315,8 @@ step :: fn(cpu: CPU, isRunning: *bool) -> CPU {
     instr := read(cpu.pc, cpu.mem)
     index := cast(i64)instr
 
-    mode : Mode = <(bitcast(*Mode) &instructionModes[index])
+    rawMode := instructionModes[index]
+    mode : Mode = <(bitcast(*Mode) &rawMode)
 
     address: u16
     pageCrossed := false
@@ -371,6 +372,12 @@ step :: fn(cpu: CPU, isRunning: *bool) -> CPU {
     if pageCrossed
         cpu.cycles += cast(u64) instructionPageCycles[index]
 
+    step := Step {
+        address, cpu.pc, rawMode
+    }
+
+    cpu = instrTable[instr](cpu, step)
+    libc.printf("%X %04X A:%X X:%X Y:%X P: %X SP:%X\n".raw, index, cpu.pc, cpu.a, cpu.x, cpu.y, flags(cpu), cpu.sp)
     <isRunning = false
     return cpu
 }
