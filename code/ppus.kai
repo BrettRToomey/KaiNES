@@ -11,7 +11,7 @@ PPU :: struct {
     backBuffer: *ScreenBuffer
     
     v, t: u16
-    c, w, f,
+    x, w, f,
     register: u8
     nmiOccurred, nmiOutput, nmiPrevious: bool
     nmiDelay,
@@ -53,4 +53,333 @@ PPU :: struct {
 
     // $2008
     bufferedData: u8
+}
+
+reset :: fn(ppu: PPU) -> PPU {
+    ppu.cycle = 340
+    ppu.scanline = 240
+    ppu.frame = 0
+    ppu = writeControl(ppu, 0)
+    ppu = writeMask(ppu, 0)
+    ppu = writeOAMAddress(ppu, 0)
+    return ppu
+}
+
+writeControl :: fn(ppu: PPU, val: u8) -> PPU {
+    ppu.flagNameTable = (val >> 0) & 3
+    ppu.flagIncrement = (val >> 2) & 1
+    ppu.flagSpriteTable = (val >> 3) & 1
+    ppu.flagBackgroundTable = (val >> 4) & 1
+    ppu.flagSpriteSize = (val >> 5) & 1
+    ppu.flagMasterSlave = (val >> 6) & 1
+    ppu.nmiOutput = (val >> 7) & 1 == 1
+    ppu = nmiChange(ppu)
+    ppu.t = (ppu.t & 0xF3FF) | ((cast(u16)(val) & 0x03) << 10)
+    return ppu
+}
+
+writeMask :: fn(ppu: PPU, val: u8) -> PPU {
+    ppu.flagGrayscale = (val >> 0) & 1
+    ppu.flagShowLeftBackground = (val >> 1) & 1
+    ppu.flagShowLeftSprites = (val >> 2) & 1
+    ppu.flagShowBackground = (val >> 3) & 1
+    ppu.flagShowSprites = (val >> 4) & 1
+    ppu.flagRedTint = (val >> 5) & 1
+    ppu.flagGreenTint = (val >> 6) & 1
+    ppu.flagBlueTint = (val >> 7) & 1
+    return ppu
+}
+
+// $2003: OAMADDR
+writeOAMAddress :: fn(ppu: PPU, val: u8) -> PPU {
+    ppu.oamAddress = val
+    return ppu
+}
+
+readOAMData :: fn(ppu: PPU) -> u8 {
+    return ppu.oamData[ppu.oamAddress]
+}
+
+writeOAMData :: fn(ppu: PPU, val: u8) -> PPU {
+    ppu.oamData[ppu.oamAddress] = val
+    ppu.oamAddress += 1
+    return ppu
+}
+
+incrementX :: fn(ppu: PPU) -> PPU {
+    if ppu.v & 0x001F == 31 {
+        ppu.v &= 0xFFE0
+        ppu.v ^= 0x0400
+    } else ppu.v += 1
+    return ppu
+}
+
+incrementY :: fn(ppu: PPU) -> PPU {
+    if ppu.v & 0x7000 != 0x7000
+        ppu.v += 0x1000
+    else {
+        ppu.v &= 0x8FFF
+        y := (ppu.v & 0x03E0) >> 5
+        if y == 29 {
+            y = 0
+            ppu.v ^= 0x0800
+        } 
+        else if y == 31
+            y = 0
+        else
+            y += 1
+
+        ppu.v = (ppu.v & 0xFC1F) | (y << 5)
+    }
+    return ppu
+}
+
+copyX :: fn(ppu: PPU) -> PPU {
+    ppu.v = (ppu.v & 0xFBE0) | (ppu.t & 0x041F)
+    return ppu
+}
+
+copyY :: fn(ppu: PPU) -> PPU {
+    ppu.v = (ppu.v & 0x841F) | (ppu.t & 0x7BE0)
+    return ppu
+}
+
+nmiChange :: fn(ppu: PPU) -> PPU {
+    nmi := ppu.nmiOutput && ppu.nmiOccurred
+    if nmi && !ppu.nmiPrevious {
+        // TOOD: fix delay
+        ppu.nmiDelay = 15
+    }
+    ppu.nmiPrevious = nmi
+    return ppu
+}
+
+setVerticalBlank :: fn(ppu: PPU) -> PPU {
+    ppu.frontBuffer, ppu.backBuffer = ppu.backBuffer, ppu.frontBuffer
+    ppu.nmiOccurred = true
+    return nmiChange(ppu)
+}
+
+clearVerticalBlank :: fn(ppu: PPU) -> PPU {
+    ppu.nmiOccurred = false
+    return nmiChange(ppu)
+}
+
+fetchNameTableByte :: fn(ppu: PPU) -> PPU {
+    v := ppu.v
+    address := 0x2000 | (v & 0x0FFF)
+    // FIXME: ppu.read
+    ppu.nameTableByte = 0
+    return ppu
+}
+
+fetchAttributeTableByte :: fn(ppu: PPU) -> PPU {
+    v := ppu.v
+    address := 0x23C0 | (v & 0x0C00) | ((v >> 4) & 0x38) | ((v >> 2) & 0x07)
+    shift := ((v >> 4) & 4) | (v & 2)
+    // FIXME: ppu.read
+    val := ((0 >> shift) & 3) << 2
+    ppu.attributeTableByte = cast(u8)val
+    return ppu
+}
+
+fetchLowTileByte :: fn(ppu: PPU) -> PPU {
+    fineY := (ppu.v >> 12) & 7
+    table := cast(u16)ppu.flagBackgroundTable
+    tile := cast(u16)ppu.nameTableByte
+    address := 0x1000 * table + tile * 16 + fineY
+    // FIXME: ppu.read
+    ppu.lowTileByte = 0
+    return ppu
+}
+
+fetchHighTileByte :: fn(ppu: PPU) -> PPU {
+    fineY := (ppu.v >> 12) & 7
+    table := cast(u16)ppu.flagBackgroundTable
+    tile := cast(u16)ppu.nameTableByte
+    address := 0x1000 * table + tile * 16 + fineY
+    // FIXME: ppu.read
+    ppu.highTileByte = 0 // address + 8
+    return ppu
+}
+
+storeTileData :: fn(ppu: PPU) -> PPU {
+    data: u32
+    for i := 0; i < 8; i += 1 {
+        a := cast(u32)ppu.attributeTableByte
+        p1 := cast(u32)((ppu.lowTileByte & 0x80) >> 7)
+        p2 := cast(u32)((ppu.highTileByte & 0x80) >> 6)
+        ppu.lowTileByte <<= 1
+        ppu.highTileByte <<= 1
+        data <<= 4
+        data |= a | p1 | p2
+    }
+    ppu.tileData |= cast(u64)data
+    return ppu
+}
+
+fetchTileData :: fn(ppu: PPU) -> u32 {
+    return cast(u32)(ppu.tileData >> 32)
+}
+
+backgroundPixel :: fn(ppu: PPU) -> u8 {
+    if ppu.flagShowBackground == 0
+        return 0
+    data := fetchTileData(ppu) >> ((7 - ppu.x) * 4)
+    return cast(u8)(data & 0x0F)
+}
+
+spritePixel :: fn(ppu: PPU) -> u8, u8 {
+    if ppu.flagShowSprites == 0
+        return 0, 0
+    for i := 0; i < ppu.spriteCount; i += 1 {
+        offset := (ppu.cycle - 1) - cast(i64)ppu.spritePositions[i]
+        if offset < 0 || offset > 7
+            continue
+        offset = 7 - offset
+        color := cast(u8)((ppu.spritePatterns[i] >> cast(u8)(offset * 4)) & 0x0F)
+        if color % 4 == 0
+            continue
+        return i, color
+    }
+    return 0, 0 
+}
+
+renderPixel :: fn(ppu: PPU) -> void {
+    // TODO: implement
+}
+
+fetchSpritePattern :: fn(ppu: PPU, i, row: i64) -> u32 {
+    // TODO: implement
+    return 0
+}
+
+evaluateSprites :: fn(ppu: PPU) -> PPU {
+    h: i64
+    if ppu.flagSpriteSize == 0
+        h = 8
+    else
+        h = 16
+
+    count := 0
+    for i := 0; i < 64; i += 1 {
+        y := cast(i64)ppu.oamData[i * 4 + 0]
+        a := ppu.oamData[i * 4 + 2]
+        x := ppu.oamData[i * 4 + 3]
+        row := ppu.scanline - y
+        if row < 0 || row >= h
+            continue
+
+        if count < 8 {
+            ppu.spritePatterns[count] = fetchSpritePattern(ppu, i, row)
+            ppu.spritePositions[count] = x
+            ppu.spritePriorities[count] = (a >> 5) & 1
+            ppu.spriteIndexes[count] = i
+        }
+        count += 1
+    }
+
+    if count > 8 {
+        count = 8
+        ppu.flagSpriteOverflow = 1
+    }
+
+    ppu.spriteCount = count
+    return ppu
+}
+
+tick :: fn(ppu: PPU) -> PPU {
+    if ppu.nmiDelay > 0 {
+        ppu.nmiDelay -= 1
+        if ppu.nmiDelay == 0 && ppu.nmiOutput && ppu.nmiOccurred {
+            // TODO: cpu.triggerNMI
+        }
+    }
+
+    if ppu.flagShowBackground != 0 || ppu.flagShowSprites != 0 {
+        if ppu.f == 1 && ppu.scanline == 261 && ppu.cycle == 339 {
+            ppu.cycle = 0
+            ppu.scanline = 0
+            ppu.frame += 1
+            ppu.f ^= 1
+            return ppu
+        }
+    }
+
+    ppu.cycle += 1
+    if ppu.cycle > 340 {
+        ppu.cycle = 0
+        ppu.scanline += 1
+        if ppu.scanline > 261 {
+            ppu.scanline = 0
+            ppu.frame += 1
+            ppu.f ^= 1
+        }
+    }
+ 
+    return ppu
+}
+
+step :: fn(ppu: PPU) -> PPU {
+    ppu = tick(ppu)
+
+    renderingEnabled := ppu.flagShowBackground != 0 || ppu.flagShowSprites != 0
+    preLine := ppu.scanline == 261
+    visibleLine := ppu.scanline < 240
+    renderLine := preLine || visibleLine
+    preFetchCycle := ppu.cycle >= 321 && ppu.cycle <= 336
+    visibleCycle := ppu.cycle >= 1 && ppu.cycle <= 256
+    fetchCycle := preFetchCycle || visibleCycle
+
+    // background
+    if renderingEnabled {
+        if visibleLine && visibleCycle
+            renderPixel(ppu)
+        if renderLine && fetchCycle {
+            ppu.tileData <<= 4
+            switch ppu.cycle % 8 {
+            case 1:
+                ppu = fetchNameTableByte(ppu)
+            case 3:
+                ppu = fetchAttributeTableByte(ppu)
+            case 5:
+                ppu = fetchLowTileByte(ppu)
+            case 7:
+                ppu = fetchHighTileByte(ppu)
+            case 0:
+                ppu = storeTileData(ppu)
+            case: break
+            }
+        }
+        if preLine && ppu.cycle >= 280 && ppu.cycle <= 304
+            ppu = copyY(ppu)
+        if renderLine {
+            if fetchCycle && ppu.cycle % 8 == 0
+                ppu = incrementX(ppu)
+            if ppu.cycle == 256
+                ppu = incrementY(ppu)
+            if ppu.cycle == 257
+                ppu = copyX(ppu)
+        }
+    }
+
+    // sprites
+    if renderingEnabled 
+        if ppu.cycle == 257
+            if visibleLine
+                ppu = evaluateSprites(ppu)
+            else
+                ppu.spriteCount = 0
+
+    // vblank
+    if ppu.scanline == 241 && ppu.cycle == 1
+        ppu = setVerticalBlank(ppu)
+
+    if preLine && ppu.cycle == 1 {
+        ppu = clearVerticalBlank(ppu)
+        ppu.flagSpriteZeroHit = 0
+        ppu.flagSpriteOverflow = 0
+    }
+
+    return ppu
 }
