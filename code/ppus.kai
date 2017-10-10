@@ -1,9 +1,14 @@
+RGBA :: [vec 4]u8
+ScreenBuffer :: [256][240]RGBA
+
 PPU :: struct {
     cycle, scanline: i64
     frame: u64
     paletteData: [32]u8
     nameTableData: [2048]u8
     oamData: [256]u8
+    frontBuffer: *ScreenBuffer
+    backBuffer: *ScreenBuffer
     
     v, t: u16
     c, w, f,
