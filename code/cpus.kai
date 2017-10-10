@@ -170,9 +170,8 @@ boot :: fn(mem: *Memory) -> CPU {
 }
 
 read :: fn(address: u16, mem: *Memory) -> u8 {
-    m := <mem
     if address < 0x2000
-        return m.ram[address % 0x0800]
+        return mem.ram[address % 0x0800]
     else if address < 0x4000
         return 0 // TODO: read PPU register
     else if address == 0x4014
@@ -185,16 +184,15 @@ read :: fn(address: u16, mem: *Memory) -> u8 {
         return 0 // TODO: read controller 2
     else if address < 0x6000
         return 0 // TODO: read I/O registers
-    else if address >= 0x6000 && m.mapper.read != nil
-        return m.mapper.read(address)
+    else if address >= 0x6000 && mem.mapper.read != nil
+        return mem.mapper.read(address)
 
     return 0
 }
 
 write :: fn(address: u16, val: u8, mem: *Memory) -> void {
-    m := <mem
     if address < 0x2000
-        m.ram[address % 0x0800] = val
+        mem.ram[address % 0x0800] = val
     // TODO: other registers, inputs and mapper writes
 }
 

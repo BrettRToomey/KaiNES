@@ -1,13 +1,13 @@
 #import "libc.kai"
 
-Mapper :: struct {
-    read:  (address: u16) -> u8
-    write: (address: u16, val: u8) -> void
-}
-
 Memory :: struct {
     ram, pgrRam: []u8
     mapper: Mapper
+}
+
+Mapper :: struct {
+    read:  (address: u16) -> u8
+    write: (address: u16, val: u8) -> void
 }
 
 NewMemory :: fn() -> Memory {
