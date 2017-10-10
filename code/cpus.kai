@@ -412,7 +412,7 @@ asl :: fn(cpu: CPU, step: Step) -> CPU {
         cpu.C = (cpu.a >> 7) & 1
         cpu.a <<= 1
         cpu = setZN(cpu, cpu.a)
-    }; else {
+    } else {
         value := read(step.address, cpu.mem)
         cpu.C = (value >> 7) & 1
         value <<= 1
@@ -612,7 +612,7 @@ lsr :: fn(cpu: CPU, step: Step) -> CPU {
         cpu.C = cpu.a & 1
         cpu.a >>= 1
         cpu = setZN(cpu, cpu.a)
-    }; else {
+    } else {
         val := read(step.address, cpu.mem)
         cpu.C = val & 1
         val >>= 1
@@ -654,7 +654,7 @@ rol :: fn(cpu: CPU, step: Step) -> CPU {
         cpu.C = (cpu.a >> 7) & 1
         cpu.a = (cpu.a << 1) | c
         cpu = setZN(cpu, cpu.a) 
-    }; else {
+    } else {
         c := cpu.C
         val := read(step.address, cpu.mem)
         cpu.C = (val >> 7) & 1
@@ -671,7 +671,7 @@ ror :: fn(cpu: CPU, step: Step) -> CPU {
         cpu.C = cpu.a & 1
         cpu.a = (cpu.a >> 1) | (c << 7)
         cpu = setZN(cpu, cpu.a)
-    }; else {
+    } else {
         c := cpu.C
         val := read(step.address, cpu.mem)
         cpu.C = val & 1

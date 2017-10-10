@@ -1,5 +1,6 @@
 #import "roms.kai" 
 #import "cpus.kai"
+#import "ppus.kai"
 #import "libc.kai"
  
 main :: fn(argc: i32, argv: **u8) -> i32 {

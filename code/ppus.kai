@@ -1,0 +1,51 @@
+PPU :: struct {
+    cycle, scanline: i64
+    frame: u64
+    paletteData: [32]u8
+    nameTableData: [2048]u8
+    oamData: [256]u8
+    
+    v, t: u16
+    c, w, f,
+    register: u8
+    nmiOccurred, nmiOutput, nmiPrevious: bool
+    nmiDelay,
+
+    nameTableByte, attributeTableByte,
+    lowTileByte, highTileByte: u8
+    tileData: u64    
+
+    spriteCount: i64
+    spritePatterns: [8]u32
+    spritePositions,
+    spritePriorities,
+    spriteIndexes: [8]u8
+
+    // $2000 PPUCTRL
+    flagNameTable,
+    flagIncrement,
+    flagSpriteTable,
+    flagBackgroundTable,
+    flagSpriteSize,
+    flagMasterSlave,
+
+    // $2001 PPUMASK
+    flagGrayscale,
+    flagShowLeftBackground,
+    flagShowLeftSprites,
+    flagShowBackground,
+    flagShowSprites,
+    flagRedTint,
+    flagGreenTint,
+    flagBlueTint,
+
+    // $2002
+    flagSpriteZeroHit,
+    flagSpriteOverflow,
+
+    // $2003
+    oamAddress,
+
+    // $2008
+    bufferedData: u8
+}
